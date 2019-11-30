@@ -8,7 +8,7 @@
 
 static int window_width, window_height;
 
-const static float pi = 3.141592653589793;
+#define pi M_PI
 
 static float phi, theta;
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv){
     glEnable(GL_DEPTH_TEST);
     glLineWidth(2);
     
-    phi = theta = 0;
+    phi = theta = 0.0001;
     delta_phi = delta_theta = pi / 90;
     
     pozicija = -5;
@@ -73,17 +73,32 @@ static void on_keyboard(unsigned char key, int x, int y){
         break;
         
 	case 'g':
-			if (!timer0Active) {
-		        glutTimerFunc(100, on_timer, TIMER0);
-		        timer0Active = 1;
-        	}
-			break;
+        if (!timer0Active) {
+            glutTimerFunc(100, on_timer, TIMER0);
+            timer0Active = 1;
+        }
+        break;
 			
 	case 's':
-			timer0Active = 0;
-			break;
+        timer0Active = 0;
+        break;
     
- 	}   
+ 	
+
+    case 'q':
+        theta += delta_theta;
+        if(theta > pi/2)
+            theta -= delta_theta;
+        glutPostRedisplay();
+        break;
+    case 'e':
+        theta -= delta_theta;
+        if(theta < -pi/2)
+            theta += delta_theta;
+        glutPostRedisplay();
+        break;
+    
+    }
 }
 
 static void on_reshape(int width, int height){
@@ -107,11 +122,16 @@ static void on_display(void){
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
              
-     gluLookAt(
+    /* gluLookAt(
             0, 6, pozicija,
             0, 5, pozicija + 5,
             0, 0, 1
         );
+    */
+
+    gluLookAt(pozicija*sin(theta),6,pozicija*cos(theta),
+            0,5,pozicija + 5,
+            0,1,0);
         
      
     glBegin(GL_LINES);

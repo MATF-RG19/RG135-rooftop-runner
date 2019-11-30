@@ -1,0 +1,7 @@
+|cosθ   0 sinθ  | |x|     |xcosθ  + zsinθ|      |pozicija*sinθ|
+|   0   1    0  | |y|  =  |       y      |  --> |        6    |
+|−sinθ  0 cosθ  | |z|     |-xsinθ + zcosθ|      |pozicija*cosθ|
+^^^^^^^^^^^^^^^^                           ^^^^
+rotacija oko y                       (x,y,z) = (0,6,pozicija)
+
+
