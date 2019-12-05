@@ -3,12 +3,3 @@
 |−sinθ  0 cosθ  | |z|     |-xsinθ + zcosθ|      |pozicija*cosθ|
 ^^^^^^^^^^^^^^^^                           ^^^^
 rotacija oko y                       (x,y,z) = (0,6,pozicija)
-
-glPushMatrix();
-        glLoadIdentity();
-        glRotatef(180 * (float) delta_x / window_width, 0, 1, 0);
-        glRotatef(180 * (float) delta_y / window_height, 1, 0, 0);
-        glMultMatrixf(matrix);
-
-        glGetFloatv(GL_MODELVIEW_MATRIX, matrix);
-    glPopMatrix();
