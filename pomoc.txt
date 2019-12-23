@@ -3,3 +3,8 @@
 |−sinθ  0 cosθ  | |z|     |-xsinθ + zcosθ|      |pozicija*cosθ|
 ^^^^^^^^^^^^^^^^                           ^^^^
 rotacija oko y                       (x,y,z) = (0,6,pozicija)
+
+1 0 0 0 
+0 1 0 0
+0 0 1 -z
+0 0 0 1

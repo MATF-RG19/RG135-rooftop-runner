@@ -4,9 +4,6 @@
 #define MANJARAZDALJINA 3
 #define VECARAZDALJINA 6
 
-#define VISINACICE 0.3
-#define VELICINATRUPA 2
-
 #define TIMER0 0
 #define TIMER1 1
 #define TIMER2 2
@@ -15,8 +12,7 @@
 #define pi M_PI
 
 static int window_width, window_height;
-static float theta;
-static float delta_theta, delta_z;
+static float delta_z;
 
 int timer0Active;
 int timer1Active;
@@ -43,10 +39,9 @@ void iscrtajOse();
 void iscrtajZgrade();
 void iscrtajKraj();
 void namestiOsvetljenjeZgrada();
-void nacrtajCicu();
 void drawCica();
 
-int pronadjiJednakiIliManji(int l, int d,int z);
+int pronadjiJednakiIliManji(int l, int d,float z);
 
 int razdaljine[BROJZGRADA];
 int pozicijeIvicaZgrada[BROJZGRADA*2];

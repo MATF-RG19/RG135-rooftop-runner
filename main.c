@@ -3,7 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
-#include<unistd.h>
+#include <unistd.h>
 #include "biblioteka.h"
 
 int main(int argc, char **argv){
@@ -12,7 +12,7 @@ int main(int argc, char **argv){
     
     srand(time(0));
 
-    glutInitWindowSize(600, 600);
+    glutInitWindowSize(1000, 600);
     glutInitWindowPosition(100, 100);
     glutCreateWindow(argv[0]);
 
@@ -24,16 +24,14 @@ int main(int argc, char **argv){
     glEnable(GL_DEPTH_TEST);
     glLineWidth(2);
     
-    theta = 0.0001;
-    delta_theta = pi / 90;
-    delta_z = 1;
+    delta_z = 0.1;
     skok = 0;
     yCica = VISINAZGRADE;
     uSkoku = 0;
     duzinaSkoka = 1;
     pad = 0;
-    pozicijaCice = prvaPozicija - VELICINAZGRADE;
-    trenutnaZKoordinata = prvaPozicija-VELICINAZGRADE;
+    pozicijaCice = prvaPozicija;
+    trenutnaZKoordinata = prvaPozicija;
     zKoordinataPreSkoka = pozicijaCice;
 
 	timer0Active = 0;
@@ -50,19 +48,19 @@ int main(int argc, char **argv){
 
 static void on_timer(int value){
     //TIMER JE ONAJ KOJI MI POMERA POZICIJU KAMERE 
-    if (value == TIMER0){
+    if (value == TIMER0 && !timer2Active){
 		trenutnaZKoordinata += delta_z;
         pozicijaCice += delta_z;
 		glutPostRedisplay();
     if (timer0Active && trenutnaZKoordinata<poslednjaZ-2*prvaPozicija)
-		    glutTimerFunc(100, on_timer, TIMER0);
+		    glutTimerFunc(150, on_timer, TIMER0);
 	}
 
     //TIMER ZA KRACI SKOK
     if (value == TIMER1){
         uSkoku = 1;
         skok+=0.1;
-        if(skok > pi+0.001){
+        if(skok > pi){
             skok = 0;
             timer1Active = 0;
             uSkoku = 0;
@@ -77,8 +75,13 @@ static void on_timer(int value){
         timer0Active = 0;
         pad += 1;
         glutPostRedisplay();
-        if (timer2Active && pad < VISINAZGRADE)
+        if (timer2Active && pad < 2*VISINAZGRADE)
 		    glutTimerFunc(25, on_timer, TIMER2);
+        else{
+            sleep(2);
+            exit(0);
+        }
+
         
         //exit(1);
     }
@@ -116,20 +119,7 @@ static void on_keyboard(unsigned char key, int x, int y){
 	case 's':
         timer0Active = 0;
         break;
-    //ROTIRAJ U DESNO
-    case 'e':
-        theta += delta_theta;
-        if(theta > pi/4)
-            theta -= delta_theta;
-        glutPostRedisplay();
-        break;
-    //ROTIRAJ U LEVO
-    case 'q':
-        theta -= delta_theta;
-        if(theta < -pi/4)
-            theta += delta_theta;
-        glutPostRedisplay();
-        break;
+    
     //MANJI SKOK
     case 'j':
         duzinaSkoka = 1;
@@ -171,28 +161,39 @@ static void on_display(void){
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    gluLookAt(trenutnaZKoordinata*sin(theta),2*VISINAZGRADE,trenutnaZKoordinata*cos(theta),
-              0,2*VISINAZGRADE,trenutnaZKoordinata +VELICINAZGRADE,
-              0,1,0);
+    gluLookAt(-5, 2*VISINAZGRADE, 2+trenutnaZKoordinata-1,
+              0, 2*VISINAZGRADE, trenutnaZKoordinata + VELICINAZGRADE,
+              0, 1, 0);
+
+    //printf("Gledam iz: %d,%d,%.2f\nGledam u: %d,%d,%.2f\n\n",-5,2*VISINAZGRADE,2+trenutnaZKoordinata,0,2*VISINAZGRADE,trenutnaZKoordinata+VELICINAZGRADE);
     
-    namestiOsvetljenjeZgrada();
-    iscrtajOse();
-    iscrtajZgrade();
-    iscrtajKraj();
+    glPushMatrix();
+        namestiOsvetljenjeZgrada();
+        iscrtajOse();
+        iscrtajZgrade();
+        iscrtajKraj();
+    glPopMatrix();
 
 
-
-    glTranslatef(0, 2*VISINAZGRADE-1.5+sin(duzinaSkoka*skok)-pad, pozicijaCice+prvaPozicija);
-    glScalef(0.2,0.2,0.2);
-    drawCica();
-    yCica = 2*VISINAZGRADE-1.5+sin(duzinaSkoka*skok)-pad;
-
-    int pozicijaPrvePrethodne = pronadjiJednakiIliManji(0,2*BROJZGRADA,pozicijaCice);
+    glPushMatrix();
+        glTranslatef(0, 2*VISINAZGRADE-1.5+sin(duzinaSkoka*skok)-pad, pozicijaCice+prvaPozicija);
+        glScalef(0.2,0.2,0.2);
+        drawCica();
+    glPopMatrix();
+    printf("nalazi se %f\n",pozicijaCice+prvaPozicija);
+    yCica = 2*VISINAZGRADE+sin(duzinaSkoka*skok)-pad-1.5;
+    int pozicijaPrvePrethodne = pronadjiJednakiIliManji(0,2*BROJZGRADA,pozicijaCice+prvaPozicija);
     if((pozicijaPrvePrethodne%2 != 0 && !uSkoku)||(uSkoku && yCica < VISINAZGRADE)){
-        //printf("%d\n",pozicijeIvicaZgrada[pozicijaPrvePrethodne]);
+        printf("PADAM\nnalazi se %f\tprva bliza:%d\n",pozicijaCice+prvaPozicija,pozicijeIvicaZgrada[pozicijaPrvePrethodne]);
+        timer0Active = 0;
+        if(pozicijaPrvePrethodne%2 != 0 && !uSkoku)
+            printf("prvi razlog\n\n");
+        else
+            printf("drugi razlog\n\n");
         if (!timer2Active) {
             glutTimerFunc(100, on_timer, TIMER2);
             timer2Active = 1;
+            timer0Active = 0;
         }
     }
 
@@ -202,7 +203,8 @@ static void on_display(void){
 void nadjiRazdaljine(){
     int i = 0;
     int randR = 0;
-    for(i = 0;i<BROJZGRADA;i++){
+    razdaljine[0] = 0;
+    for(i = 1;i<BROJZGRADA;i++){
         randR = rand()%2;
         if(randR == 0){
             razdaljine[i] = MANJARAZDALJINA;
@@ -212,10 +214,11 @@ void nadjiRazdaljine(){
             razdaljine[i] = VECARAZDALJINA;
             sumaRazdaljina+=VECARAZDALJINA;
         }
+        //printf("%d\n",razdaljine[i]);
     }
     poslednjaZ = (BROJZGRADA+1)*VELICINAZGRADE + sumaRazdaljina+1;
-    prvaPozicija = razdaljine[0]+VELICINAZGRADE/2.0;
-    printf("%d\n%f\n",razdaljine[0],prvaPozicija);
+    prvaPozicija = razdaljine[0];
+    printf("prva pozicija: %d\n%f\n",razdaljine[0],prvaPozicija);
 }
 
 void iscrtajZgrade(){
@@ -232,7 +235,7 @@ void iscrtajZgrade(){
         glPopMatrix();
         pozicijeIvicaZgrada[2*i] = trenutnaBlizaStranica;
         pozicijeIvicaZgrada[2*i+1] = trenutnaBlizaStranica + VELICINAZGRADE;
-        //printf("(%d, %d)\n",trenutnaBlizaStranica,trenutnaBlizaStranica+VELICINAZGRADE);
+        printf("(%d, %d)\n",trenutnaBlizaStranica,trenutnaBlizaStranica+VELICINAZGRADE);
     }
 }
 
@@ -289,38 +292,6 @@ void namestiOsvetljenjeZgrada(){
     glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
 }
 
-void nacrtajCicu(){
-    GLfloat ambient_coeffs[] = { 1.0, 0, 1.0, 0.5 };
-    GLfloat diffuse_coeffs[] = { 1.0, 0, 1.0, 0.5 };
-    
-    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-
-    glPushMatrix();
-        //GLAVA
-        glTranslatef(0,2*VISINAZGRADE+VISINACICE,prvaPozicija);
-        glutSolidSphere(0.2,10,10);
-        //TRUP
-        glTranslatef(0,-1.2,0);
-        glScalef(0.2,VELICINATRUPA/2.0,0.2);
-        glutSolidCube(VELICINATRUPA);
-        glPushMatrix();
-            //RUKA DESNA
-            glTranslatef(-2.5,VELICINATRUPA/2.0-0.1,0);
-            glScalef(5,0.1,0.1);
-            glutSolidCube(1);
-            //RUKA LEVA
-            glTranslatef(1,0,0);
-            glutSolidCube(1);
-        glPopMatrix();
-
-        //NOGA DESNA
-        glTranslatef(0,-3,0);
-        glScalef(0.2,0.5,0.2);
-        glutSolidCube(1);
-
-    glPopMatrix();
-}
 
 void drawCica(){
     GLfloat ambient_coeffs[] = { 1.0, 0, 1.0, 0.5 };
@@ -393,17 +364,12 @@ void drawCica(){
     glPopMatrix();
 }
 
-int pronadjiJednakiIliManji(int l, int d, int z){
-    while(d>=l){
-        int mid = l + (d - l)/2; 
-  
-        if (pozicijeIvicaZgrada[mid] == z)
-            return l; 
-  
-        else if (pozicijeIvicaZgrada[mid] < z)
-            l = mid+1; 
-  
-        else d = mid-1;
+int pronadjiJednakiIliManji(int l, int d, float z){
+    int i = 0;
+    for(i=0; i<d; i++){
+        if(pozicijeIvicaZgrada[i] > z){
+            return i-1;
+        }
     }
-    return l;
+    return -1;
 }
