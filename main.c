@@ -2,15 +2,60 @@
 #include <GL/glut.h>
 #include <math.h>
 #include <time.h>
-#include <stdio.h>
 #include <unistd.h>
-#include "biblioteka.h"
+
+#define VELICINAZGRADE 3.0
+#define VISINAZGRADE 5
+#define BROJZGRADA 15
+#define MANJARAZDALJINA 3
+#define VECARAZDALJINA 6
+
+
+// `60` je za 60 fps
+#define INTERVAL_AZURIRANJA (1000/60)
+
+#define TIMER0 0
+
+#define pi M_PI
+
+static int window_width, window_height;
+static float delta_z = 0.1f;
+
+float trenutnaZKoordinata;
+float sumaRazdaljina;
+float poslednjaZ;
+float prvaPozicija;
+float pad = 0;
+
+static void on_timer(int value);
+static void on_keyboard(unsigned char key, int x, int y);
+static void on_reshape(int width, int height);
+static void on_display(void);
+void nadjiRazdaljine();
+void iscrtajOse();
+void iscrtajZgrade();
+void iscrtajKraj();
+void namestiOsvetljenjeZgrada();
+void drawCica();
+
+int pronadjiJednakiIliManji(int l, int d,float z);
+
+int proveri_da_li_pada();
+
+int razdaljine[BROJZGRADA];
+int pozicijeIvicaZgrada[BROJZGRADA*2];
+
+typedef enum { HODA, SKACE, DUGACKO_SKACE, PADA } Stanje;
+
+Stanje stanje = HODA;
+int igra_u_toku = 0;
+float parametar_skoka = 0;
 
 int main(int argc, char **argv){
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
     
-    srand(time(0));
+    srand(time(NULL));
 
     glutInitWindowSize(1000, 600);
     glutInitWindowPosition(100, 100);
@@ -23,23 +68,11 @@ int main(int argc, char **argv){
     glClearColor(0.75, 0.75, 0.75, 0);
     glEnable(GL_DEPTH_TEST);
     glLineWidth(2);
-    
-    delta_z = 0.1;
-    skok = 0;
-    yCica = VISINAZGRADE;
-    uSkoku = 0;
-    duzinaSkoka = 1;
-    pad = 0;
-    pozicijaCice = prvaPozicija;
-    trenutnaZKoordinata = prvaPozicija;
-    zKoordinataPreSkoka = pozicijaCice;
-
-	timer0Active = 0;
-    timer1Active = 0;
-    timer2Active = 0;
-    timer3Active = 0;
 
     nadjiRazdaljine();
+
+    glutTimerFunc(INTERVAL_AZURIRANJA, on_timer, TIMER0);
+
     glutMainLoop();
 
     return 0;
@@ -47,97 +80,88 @@ int main(int argc, char **argv){
 
 
 static void on_timer(int value){
-    //TIMER JE ONAJ KOJI MI POMERA POZICIJU KAMERE 
-    if (value == TIMER0 && !timer2Active){
-		trenutnaZKoordinata += delta_z;
-        pozicijaCice += delta_z;
-		glutPostRedisplay();
-    if (timer0Active && trenutnaZKoordinata<poslednjaZ-2*prvaPozicija)
-		    glutTimerFunc(150, on_timer, TIMER0);
-	}
+    (void) (value); // Ovo se ovako piše jer se ne koristi parametar value
 
-    //TIMER ZA KRACI SKOK
-    if (value == TIMER1){
-        uSkoku = 1;
-        skok+=0.1;
-        if(skok > pi){
-            skok = 0;
-            timer1Active = 0;
-            uSkoku = 0;
-        }
-        glutPostRedisplay();
-        if (timer1Active && skok < pi)
-		    glutTimerFunc(25, on_timer, TIMER1);
-	}
-
-    //ZA PAD
-    if (value == TIMER2){
-        timer0Active = 0;
-        pad += 1;
-        glutPostRedisplay();
-        if (timer2Active && pad < 2*VISINAZGRADE)
-		    glutTimerFunc(25, on_timer, TIMER2);
-        else{
-            sleep(2);
-            exit(0);
-        }
-
-        
-        //exit(1);
+    if (!igra_u_toku) { // Ako igra nije u toku, samo ponovo okini tajmer za 50ms.
+        glutTimerFunc(INTERVAL_AZURIRANJA, on_timer, TIMER0);
+        return;
     }
 
-    //ZA DUZI SKOK
-    if (value == TIMER3){
-        uSkoku = 1;
-        skok+=0.1;
-        //pozicijaCice+=1;
-        if(skok > pi/2){
-            skok = 0;
-            timer3Active = 0;
-            uSkoku = 0;
-        }
-        glutPostRedisplay();
-        if (timer3Active && skok < pi/2)
-		    glutTimerFunc(25, on_timer, TIMER3);
-	}
+    if (stanje != PADA) { // U svim slučajeva osim pri padanju, čiča se kreće unapred
+        trenutnaZKoordinata += delta_z;
+    }
 
+    switch (stanje) {
+        case HODA: {
+            if (proveri_da_li_pada()) {
+                stanje = PADA;
+            }
+        } break;
+
+        case SKACE: {
+            parametar_skoka+=0.02f;
+            if(parametar_skoka > 1.0) {
+                parametar_skoka = 0;
+                stanje = HODA;
+            }
+        } break;
+        case DUGACKO_SKACE: {
+            parametar_skoka+=0.014f;
+            if(parametar_skoka > 1.0) {
+                parametar_skoka = 0;
+                stanje = HODA;
+            }
+        } break;
+
+        case PADA: {
+            pad += 0.1f;
+            if (pad >= 2 * VISINAZGRADE) {
+                sleep(2);
+                exit(0);
+            }
+        } break;
+
+        default:
+            break;
+    }
+
+    // KRAJ IGRE
+    if (trenutnaZKoordinata >= poslednjaZ) {
+        exit(0);
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(INTERVAL_AZURIRANJA, on_timer, TIMER0);
 }
 
 static void on_keyboard(unsigned char key, int x, int y){
     switch (key) {
-    case 27:
-        exit(0);
-        break;
-    //KRENI   
-	case 'g':
-        if (!timer0Active) {
-            glutTimerFunc(100, on_timer, TIMER0);
-            timer0Active = 1;
-        }
-        break;
-	//STANI		
-	case 's':
-        timer0Active = 0;
-        break;
+        case 27:
+            exit(0);
+        //KRENI
+        case 'g': {
+            igra_u_toku = 1;
+        }         break;
+
+        //STANI
+        case 's':
+            igra_u_toku = 0;
+            break;
     
-    //MANJI SKOK
-    case 'j':
-        duzinaSkoka = 1;
-        zKoordinataPreSkoka = pozicijaCice;
-        if (!timer1Active && !uSkoku) {
-            glutTimerFunc(100, on_timer, TIMER1);
-            timer1Active = 1;
-        }
-        break;
-    //VECI SKOK
-     case 'k':
-        duzinaSkoka = 2;
-        zKoordinataPreSkoka = pozicijaCice;
-        if (!timer3Active && !uSkoku) {
-            glutTimerFunc(100, on_timer, TIMER3);
-            timer3Active = 1;
-        }
-        break;
+        //MANJI SKOK
+        case 'j':
+            if (stanje == HODA) {
+                stanje = SKACE;
+            }
+            break;
+        //VECI SKOK
+         case 'k':;
+            if (stanje == HODA) {
+                stanje = DUGACKO_SKACE;
+            }
+            break;
+        default:
+            break;
     }
 }
 
@@ -165,8 +189,6 @@ static void on_display(void){
               0, 2*VISINAZGRADE, trenutnaZKoordinata + VELICINAZGRADE,
               0, 1, 0);
 
-    //printf("Gledam iz: %d,%d,%.2f\nGledam u: %d,%d,%.2f\n\n",-5,2*VISINAZGRADE,2+trenutnaZKoordinata,0,2*VISINAZGRADE,trenutnaZKoordinata+VELICINAZGRADE);
-    
     glPushMatrix();
         namestiOsvetljenjeZgrada();
         iscrtajOse();
@@ -176,26 +198,11 @@ static void on_display(void){
 
 
     glPushMatrix();
-        glTranslatef(0, 2*VISINAZGRADE-1.5+sin(duzinaSkoka*skok)-pad, pozicijaCice+prvaPozicija);
+        glTranslatef(0, 2 * VISINAZGRADE - 1.5 + sin(pi * parametar_skoka) - pad, trenutnaZKoordinata + 0.2);
         glScalef(0.2,0.2,0.2);
         drawCica();
     glPopMatrix();
-    printf("nalazi se %f\n",pozicijaCice+prvaPozicija);
-    yCica = 2*VISINAZGRADE+sin(duzinaSkoka*skok)-pad-1.5;
-    int pozicijaPrvePrethodne = pronadjiJednakiIliManji(0,2*BROJZGRADA,pozicijaCice+prvaPozicija);
-    if((pozicijaPrvePrethodne%2 != 0 && !uSkoku)||(uSkoku && yCica < VISINAZGRADE)){
-        printf("PADAM\nnalazi se %f\tprva bliza:%d\n",pozicijaCice+prvaPozicija,pozicijeIvicaZgrada[pozicijaPrvePrethodne]);
-        timer0Active = 0;
-        if(pozicijaPrvePrethodne%2 != 0 && !uSkoku)
-            printf("prvi razlog\n\n");
-        else
-            printf("drugi razlog\n\n");
-        if (!timer2Active) {
-            glutTimerFunc(100, on_timer, TIMER2);
-            timer2Active = 1;
-            timer0Active = 0;
-        }
-    }
+
 
     glutSwapBuffers();
 }
@@ -214,11 +221,9 @@ void nadjiRazdaljine(){
             razdaljine[i] = VECARAZDALJINA;
             sumaRazdaljina+=VECARAZDALJINA;
         }
-        //printf("%d\n",razdaljine[i]);
     }
-    poslednjaZ = (BROJZGRADA+1)*VELICINAZGRADE + sumaRazdaljina+1;
+    poslednjaZ = (BROJZGRADA)*VELICINAZGRADE + sumaRazdaljina;
     prvaPozicija = razdaljine[0];
-    printf("prva pozicija: %d\n%f\n",razdaljine[0],prvaPozicija);
 }
 
 void iscrtajZgrade(){
@@ -229,13 +234,12 @@ void iscrtajZgrade(){
         trenutnaBlizaStranica = prethodnaDaljaStranica + razdaljine[i];
         glPushMatrix();
         glScalef(1, VISINAZGRADE, 1);
-        glTranslatef(0, 0, trenutnaBlizaStranica);
+        glTranslatef(0, 0, trenutnaBlizaStranica + VELICINAZGRADE/2);
         glutSolidCube(VELICINAZGRADE);
         prethodnaDaljaStranica = trenutnaBlizaStranica + VELICINAZGRADE; 
         glPopMatrix();
         pozicijeIvicaZgrada[2*i] = trenutnaBlizaStranica;
         pozicijeIvicaZgrada[2*i+1] = trenutnaBlizaStranica + VELICINAZGRADE;
-        printf("(%d, %d)\n",trenutnaBlizaStranica,trenutnaBlizaStranica+VELICINAZGRADE);
     }
 }
 
@@ -365,11 +369,15 @@ void drawCica(){
 }
 
 int pronadjiJednakiIliManji(int l, int d, float z){
-    int i = 0;
-    for(i=0; i<d; i++){
-        if(pozicijeIvicaZgrada[i] > z){
-            return i-1;
+    for (int i = 0; i < d; i++) {
+        if (pozicijeIvicaZgrada[i] > z) {
+            return i - 1;
         }
     }
     return -1;
+}
+
+int proveri_da_li_pada() {
+    int pozicijaPrvePrethodne = pronadjiJednakiIliManji(0,2*BROJZGRADA,trenutnaZKoordinata);
+    return pozicijaPrvePrethodne % 2 != 0;
 }
